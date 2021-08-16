@@ -38,11 +38,13 @@ let Util = {
         let possibility = {};
 
         let possibleFiles = {
-            wordpressTheme: ['entry.php', 'header.php', 'functions.php', 'sidebar.php', 'comments.php'],
-            magento: ['Gruntfile.js.sample', 'auth.json.sample', 'phpserver', 'SECURITY.md', 'generated', 'COPYING.txt'],
-            magentoTheme: ['theme.xml', 'registration.php', 'i18n'],
-            prestashop: ['header.php', 'init.php', 'error500.html', 'prestashop', 'Adapter', 'classes', 'localization', 'images.inc.php'],
+
+            wordpressTheme:  ['entry.php', 'header.php', 'functions.php', 'sidebar.php', 'comments.php'],
+            magento:         ['Gruntfile.js.sample', 'auth.json.sample', 'phpserver', 'SECURITY.md', 'generated', 'COPYING.txt'],
+            magentoTheme:    ['theme.xml', 'registration.php', 'i18n'],
+            prestashop:      ['header.php', 'init.php', 'error500.html', 'prestashop', 'Adapter', 'classes', 'localization', 'images.inc.php'],
             prestashopTheme: ['404.tpl', 'breadcrumb.tpl', 'my-account.tpl', 'config.xml', 'cms.tpl']
+
         }
 
         brotherFiles.forEach(file => {
@@ -91,6 +93,38 @@ let Util = {
         }).catch(e => {
 
             console.log(`@err ${path} is in an invalid json format`);
+
+        });
+
+    },
+
+    forEachPromise: function(arr, callback){
+
+        if(!arr || arr.length == 0) return Promise.resolve();
+
+        return new Promise(function(resolve, reject){
+
+            var index = 0;
+
+            var tick = function(){
+
+                if(typeof arr[index] === 'undefined'){
+
+                    return resolve();
+
+                }
+
+                callback(arr[index]).then(function(){
+
+                    index++;
+
+                    tick();
+
+                });
+
+            }
+
+            tick();
 
         });
 
@@ -637,6 +671,46 @@ let Util = {
             spawn.on('error', reject);
 
         });
+
+    },
+
+    findProject(src){
+
+        let splitted = src.split('/');
+
+        let projectFound = false;
+
+        for(let i = splitted.length; i > 0; i--){
+
+            if(projectFound) continue;
+
+            let iterationPath = "/";
+
+            for(let j = 0; j < i; j++){
+
+                iterationPath = path.join(iterationPath, splitted[j]);
+
+            }
+
+            // Se existir o package.json
+            if(fs.existsSync(path.join(iterationPath, 'package.json'))){
+
+                projectFound = iterationPath;
+                continue;
+
+            }
+
+            // Se existir o blitz.json
+            if(fs.existsSync(path.join(iterationPath, 'blitz.json'))){
+
+                projectFound = iterationPath;
+                continue;
+
+            }
+
+        }
+
+        return Promise.resolve(projectFound);
 
     }
 

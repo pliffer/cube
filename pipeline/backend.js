@@ -1,3 +1,4 @@
+const express = require('express');
 const path    = require('path');
 const fs      = require('fs-extra');
 
@@ -66,7 +67,92 @@ module.exports = {
 
         tests.forEach(test => {
 
-            console.log(test);
+            let testPath = path.join(folder, test);
+
+            let routeObj = require(testPath);
+
+            let router = new express.Router();
+
+            routeObj({
+
+                get(route, f){
+
+                    router.get(route, (req, res) => {
+
+                        res.std(f(req.query))
+
+                    })
+
+                },
+
+                post(route, f){
+
+                    router.post(route, (req, res) => {
+
+                        res.std(f(req.body))
+
+                    })
+
+                },
+
+                put(route, f){
+
+                    router.put(route, (req, res) => {
+
+                        res.std(f(req.body))
+
+                    })
+
+                },
+
+                // jwt: {
+
+                //     get(route, f){
+
+                //         router.get(route, global.helpers.jwt.middleware, (req, res) => {
+
+                //             res.std(f(req.decoded, req.query))
+
+                //         })
+
+                //     },
+
+                //     post(route, f){
+
+                //         router.post(route, global.helpers.jwt.middleware, (req, res) => {
+
+                //             res.std(f(req.decoded, req.body))
+
+                //         })
+
+                //     },
+
+                //     put(route, f){
+
+                //         router.put(route, global.helpers.jwt.middleware, (req, res) => {
+
+                //             res.std(f(req.decoded, req.body))
+
+                //         })
+
+                //     }
+
+                // }
+
+            });
+
+            // Caso a rota esteja prefixada
+            if(typeof routeObj.route !== 'undefined'){
+
+                // Router com prefixo
+                kugel.app.use(routeObj.route, router)
+
+            } else{
+
+                // Router sem prefixo
+                kugel.app.use(Router)
+
+            }
 
         });
 

@@ -85,112 +85,72 @@ module.exports = (config => {
 
     }
 
-    // global.app.onload(() => {
+    app.use((req, res, next) => {
 
-    //     // Passa por cada arquivo dentro de routes e o inicia
-    //     fs.readdirSync(global.dir.routes).forEach(routeName => {
+        res.ifcan = (permissions, promise) => {
 
-    //         let routeFile = path.join(global.dir.routes, routeName)
+            if(typeof permissions == 'string') permissions = [permissions]
 
-    //         let routeObj = require(routeFile)
+            var includeAll = true
 
-    //         if(typeof routeObj === 'object') return
+            permissions.forEach(function(permission){
 
-    //         let router = new express.Router()
+                if(!req.decoded.permissions || !req.decoded.permissions.includes(permission)){
 
-    //         routeObj({
+                    includeAll = false
 
-    //             get(route, f){
+                }
 
-    //                 router.get(route, (req, res) => {
+            })
 
-    //                     res.std(f(req.query))
+            if(includeAll || req.decoded.permissions.includes('admin')){
 
-    //                 })
+                res.std(promise)
 
-    //             },
+            } else{
 
-    //             post(route, f){
+                res.std(Promise.reject('401 - No permission'))
 
-    //                 router.post(route, (req, res) => {
+            }
 
-    //                     res.std(f(req.body))
+        }
 
-    //                 })
+        res.std = promise => {
 
-    //             },
+            // Turn the result into a promise
+            if(typeof promise.then === 'undefined') promise = Promise.resolve(promise);
 
-    //             put(route, f){
+            promise.then(result => {
 
-    //                 router.put(route, (req, res) => {
+                res.json({
+                    success: true,
+                    message: result,
+                    unixtime: new Date().getTime()
+                });
 
-    //                     res.std(f(req.body))
+            }).catch(e => {
 
-    //                 })
+                console.error('@error'.yellow, e.toString().red);
 
-    //             },
+                if(typeof e === 'undefined') e = "";
 
-    //             jwt: {
+                res.json({
+                    success: false,
+                    message: e.toString(),
+                    unixtime: new Date().getTime()
+                });
 
-    //                 get(route, f){
+            });
 
-    //                     router.get(route, global.helpers.jwt.middleware, (req, res) => {
+        }
 
-    //                         res.std(f(req.decoded, req.query))
+        next()
 
-    //                     })
-
-    //                 },
-
-    //                 post(route, f){
-
-    //                     router.post(route, global.helpers.jwt.middleware, (req, res) => {
-
-    //                         res.std(f(req.decoded, req.body))
-
-    //                     })
-
-    //                 },
-
-    //                 put(route, f){
-
-    //                     router.put(route, global.helpers.jwt.middleware, (req, res) => {
-
-    //                         res.std(f(req.decoded, req.body))
-
-    //                     })
-
-    //                 }
-
-    //             }
-
-    //         })
-
-    //         // Caso a rota esteja prefixada
-    //         if(typeof routeObj.route !== 'undefined'){
-
-    //             // Router com prefixo
-    //             app.use(routeObj.route, router)
-
-    //         } else{
-
-    //             // Router sem prefixo
-    //             app.use(router)
-
-    //         }
-
-    //     })
-
-    //     // Ignore cordova.js 404 error on browser environment
-    //     app.get('cordova.js', (req, res) => res.send(''))
-
-    // })
+    })
 
     server.listen(port, () => {
 
         console.log(`@info ${config.testName} listening on //${host}:${port}`)
-
-        console.log(global.config.socket)
 
         if (global.config.socket) global.config.socket.setup(io);
 
