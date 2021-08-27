@@ -238,13 +238,15 @@ module.exports = {
 
         if(!folder){
 
-            if(!fs.existsSync(path.join(process.cwd(), 'doc', 'tests', 'frontend', testName))){
+            let frontEndTestPath = path.join(process.cwd(), 'doc', 'tests', 'frontend', testName);
+
+            if(!fs.existsSync(frontEndTestPath)){
 
                 return console.log(`@error É requerido a pasta doc/tests/frontend/${testName}`);
 
             }
 
-            folder = path.join(process.cwd(), 'doc', 'tests', 'frontend', testName);
+            folder = frontEndTestPath;
 
         }
 
@@ -255,7 +257,7 @@ module.exports = {
             if(test == 'preload.js') return Promise.resolve();
             if(test == 'userdata') return Promise.resolve();
 
-            let testPath = path.join(folder, test);
+            let testPath = path.join(folder, test, test);
 
             delete require.cache[require.resolve(testPath)];
 
@@ -279,6 +281,51 @@ module.exports = {
             })
 
         });
+
+    },
+
+    examples: {
+
+        "sample-test": `
+
+module.exports = (tab, browser, env) => {
+
+    return new Promise((resolve, reject) => {
+
+        setTimeout(reject, 5000);
+
+    });
+
+}
+
+`,
+
+    },
+
+    create(obj){
+
+        console.log('@info Creating a cube front end test named ' + obj.name.green);
+
+        let finalPath = path.resolve(process.cwd(), obj.path);
+
+        obj.path = finalPath;
+
+        let testsPath = path.join(obj.path, 'doc', 'tests', 'frontend', obj.name);
+        let testPath  = path.join(testsPath, obj.name + '.js');
+
+        if(!fs.existsSync(testsPath)) fs.ensureDirSync(testsPath);
+
+        if(fs.existsSync(testPath)){
+
+            console.log('@info Abrindo existente', testPath);
+
+        } else{
+
+            fs.writeFileSync(testPath, module.exports.examples["sample-test"].trim(), 'utf-8');
+
+        }
+
+        Util.spawn(['subl', testsPath]);
 
     }
 

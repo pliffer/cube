@@ -30,6 +30,10 @@ module.exports = {
 
         let tests = await fs.readdir(testPath);
 
+        console.log(`@info Crie testes com --create ou --learn e ajude cube a crescer`.yellow);
+
+        if(!tests.length) return console.log(`${"@error".red} É requerido haver algum tipo de teste [frontend, backend, unity, mock, etc...] na pasta ${"doc/tests/<tipo>".green}`);
+
         tests.forEach(test => {
 
             if(!global.pipeline[test]) return console.log(`@error Não existe um procedimento para o teste ${test}`);

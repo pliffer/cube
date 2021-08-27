@@ -68,26 +68,20 @@ if(Object.keys(options).length == 0){
     argv.shift();
     argv.shift();
 
-    if(argv.length){
+    if(!argv.length) return pipeline.start.run('.');
 
-        let command = ['cube'];
+    let command = ['cube'];
 
-        argv.forEach((arg, k) => {
+    argv.forEach((arg, k) => {
 
-            let prefix = '';
+        let prefix = '';
 
-            if(k == 0) prefix = '--';
+        if(k == 0) prefix = '--';
 
-            command.push(prefix + arg);
+        command.push(prefix + arg);
 
-        });
+    });
 
-        Util.inheritSpawn(command);
-
-    } else{
-
-        pipeline.start.run('.');
-
-    }
+    Util.inheritSpawn(command);
 
 }

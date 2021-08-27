@@ -1,9 +1,17 @@
-const Prompt = require('prompt-password');
-const dotenv = require('dotenv');
-const path   = require('path');
-const open   = require('open');
-const fs     = require('fs-extra');
-const cp     = require('child_process');
+const Prompt  = require('prompt-password');
+const dotenv  = require('dotenv');
+const path    = require('path');
+const open    = require('open');
+const fs      = require('fs-extra');
+const cp      = require('child_process');
+const uuid    = require('uuid').v4;
+const request = require('request');
+const chance  = require('chance');
+
+// const fetch  = require('node-fetch');
+
+// const queryString = require('query-string');
+// const FormData = require('formdata-node').FormData;
 
 let Util = {
 
@@ -114,13 +122,25 @@ let Util = {
 
                 }
 
-                callback(arr[index]).then(function(){
+                var callbackPromise = callback(arr[index]);
+
+                if(callbackPromise && callbackPromise.then){
+
+                    callbackPromise.then(function(){
+
+                        index++;
+
+                        tick();
+
+                    });
+
+                } else{
 
                     index++;
 
                     tick();
 
-                });
+                }
 
             }
 
@@ -637,6 +657,224 @@ let Util = {
 
     },
 
+    jwt(jwt){
+
+        return JSON.parse(Buffer.from(jwt.split('.')[1], 'base64').toString());
+
+    },
+
+    cube(info, opts){
+
+        let cube = function(env){
+
+            this.id  = uuid();
+            this.dir = opts.projectFolder;
+            this.env = env;
+
+            let that = this;
+
+            this.util   = module.exports;
+            this.chance = chance;
+
+            this.jsons = function(location, filter){
+
+                let testDir = path.join(this.dir, 'doc', 'tests', opts.type, opts.test);
+
+                let authPath = path.resolve(testDir, location);
+
+                if(!fs.existsSync(authPath)) throw 'cube.jsons(location) not found';
+
+                let successfulAuths = fs.readdirSync(authPath);
+
+                return successfulAuths.find(successfulAuth => {
+
+                    let successfulAuthPath = path.join(authPath, successfulAuth);
+
+                    let authContent = fs.readJsonSync(successfulAuthPath);
+
+                    let filterResult = filter(authContent);
+
+                    console.log(filterResult);
+
+                    return filterResult;
+
+                });
+
+            }
+
+            this.set = function(filename, object, prepath = ''){
+
+                let cacheDir = path.join(this.dir, 'doc', 'tests', opts.type, opts.test.replace('.js', ''), prepath);
+
+                filename = filename.toString().replace('.json', '');
+
+                let filepath = path.join(cacheDir, filename + '.json');
+
+                return fs.ensureDir(cacheDir).then(() => {
+
+                    return fs.writeJson(filepath, object);
+
+                }).catch(e => {
+
+                    console.log(`@err ${e.toString()}`);
+
+                    throw e;
+
+                });
+
+            }
+
+            this.get = function(filename){
+
+                let sufix = '.json';
+
+                if(filename.substr(-5) == '.json') sufix = '';
+
+                let filepath = path.join(this.dir, 'doc', 'tests', opts.type, opts.test, filename + sufix);
+
+                return fs.exists(filepath).then(exists => {
+
+                    if(!exists) return Promise.reject(filename + ' not cached at ' + filepath);
+
+                    return fs.readJson(filepath);
+
+                }).catch(e => {
+
+                    console.log(`@err ${e.toString()}`);
+
+                    throw e;
+
+                });
+
+            }
+
+            this.call = function(toRequire, data){
+
+                console.log('calling', toRequire);
+
+
+
+            }
+
+            // this.getProfiles = function(){
+
+            //     let profilePath = path.join(this.dir, 'doc', 'tests', opts.type, opts.testName, 'profiles');
+
+            //     if(!fs.existsSync(profilePath)) return console.log(`@error ${profilePath} does not exists`);
+
+            //     let profiles   = [];
+
+            //     return fs.readdir(profilePath).then(profileFiles => {
+
+            //         let profileRet = [];
+
+            //         profileFiles.forEach(profile => {
+
+            //             profileRet.push(fs.readJson(path.join(profilePath, profile)).then(profileData => {
+
+            //                 profiles.push(profileData);
+
+            //             }));
+
+            //         });
+
+            //         return Promise.all(profileRet);
+
+            //     }).then(() => {
+
+            //         return profiles;
+
+            //     });
+
+            // }
+
+            this.request = (method, url, data = {}, headers = null) => {
+
+                if(!method) return console.log(`@error Method argument needed`);
+                if(!url) return console.log(`@error url argument needed`);
+
+                let testUrl = env.FULLHOST + url;
+
+                return new Promise((resolve, reject) => {
+
+                    let jwt = false;
+
+                    if(method == 'jwt.post'){
+                        method = 'post';
+                        jwt = true;
+                    }
+
+                    if(method == 'jwt.get'){
+                        method = 'get';
+                        jwt = true;
+                    }
+
+                    if(jwt){
+
+                        // @todo Eu sinto que dá para fazer algo aqui, mas esse if ficou obsoleto com os headers
+
+                    }
+
+                    return request[method](testUrl, {
+                        headers: headers,
+                        json: data
+                    }, (err, res, body) => {
+
+                        if(err) return reject(err);
+
+                        resolve({
+                            res: res,
+                            body: body
+                        });
+
+                    });
+
+                });
+
+            }
+
+            this.resolve = () => {
+
+                let resultFolder = path.join(that.dir, 'doc', 'tests', 'results', opts.type);
+
+                let resultName = new Date().getTime() + '-' + opts.test + '-RESOLVED.json';
+
+                let resultFile = path.join(resultFolder, resultName)
+
+                fs.ensureDirSync(resultFolder);
+
+                let content = '';
+
+                fs.writeJsonSync(resultFile, content);
+
+                console.log(`@cube ${"[RESOLVED]".green} ${opts.type} -> ${opts.test}`);
+
+            }
+
+            this.reject = (errName, additionalData) => {
+
+                let resultFolder = path.join(that.dir, 'doc', 'tests', 'results', opts.type);
+
+                let resultName = new Date().getTime() + '-' + opts.test + '-REJECTED-' + errName + '.json';
+
+                let resultFile = path.join(resultFolder, resultName)
+
+                fs.ensureDirSync(resultFolder);
+
+                fs.writeJsonSync(resultFile, additionalData);
+
+                console.log(`@cube ${"[REJECT]".red} ${opts.type} -> ${opts.test}: ${errName}`);
+
+            }
+
+            return this;
+            
+        }
+
+        return new cube(info);
+
+    },
+
     askPass(msg){
 
         return new Prompt({
@@ -711,6 +949,176 @@ let Util = {
         }
 
         return Promise.resolve(projectFound);
+
+    },
+
+    getSimpleHour: function(unixtime, outputSeconds){
+
+        if(typeof unixtime === 'undefined') unixtime = new Date().getTime();
+
+        if(typeof outputSeconds === 'undefined') outputSeconds = true;
+
+        var date = new Date(unixtime);
+
+        var hour    = date.getHours();
+        var minutes = date.getMinutes();
+        var seconds = date.getSeconds();
+
+        if(hour < 10){
+            hour = '0' + hour;
+        }
+
+        if(minutes < 10){
+            minutes = '0' + minutes;
+        }
+
+        if(seconds < 10){
+            seconds = '0' + seconds;
+        }
+
+        if(outputSeconds){
+            outputSeconds = ':' + seconds;
+        } else{
+            outputSeconds = '';
+        }
+
+        return hour + ':' + minutes + outputSeconds;
+
+    },
+
+    getDbSimpleDate: function(unixtime, db){
+
+        if(typeof unixtime === 'undefined'){
+            unixtime = new Date().getTime();
+        }
+
+        var date = new Date(unixtime);
+
+        var year  = date.getFullYear();
+        var month = date.getMonth() + 1;
+        var day   = date.getDate();
+
+        if(month < 10){
+            month = '0' + month;
+        }
+
+        if(day < 10){
+            day = '0' + day;
+        }
+
+        var offset = date.getTimezoneOffset() / 60;
+
+        if(offset < 10){
+            offset = '0' + offset;
+        }
+
+        return year + '-' + month + '-' + day + 'T' + module.exports.getSimpleHour(unixtime) + '-' + offset + ':00';
+
+    },
+
+    getLightDate: function(unixtime, delimiter){
+
+        if(typeof unixtime === 'undefined'){
+            unixtime = new Date().getTime();
+        }
+
+        if(typeof delimiter === 'undefined'){
+            delimiter = '-';
+        }
+
+        var date = new Date(unixtime);
+
+        var year  = date.getFullYear();
+        var month = date.getMonth() + 1;
+        var day   = date.getDate();
+
+        if(month < 10){
+            month = '0' + month;
+        }
+
+        if(day < 10){
+            day = '0' + day;
+        }
+
+        var offset = date.getTimezoneOffset() / 60;
+
+        if(offset < 10){
+            offset = '0' + offset;
+        }
+
+        return day + delimiter + month;
+
+    },
+
+    getSimpleDate: function(unixtime, db){
+
+        if(typeof unixtime === 'undefined'){
+            unixtime = new Date().getTime();
+        }
+
+        if(typeof db === 'undefined'){
+
+            db = false;
+
+        }
+
+        var date = new Date(Number(unixtime));
+
+        var year  = date.getFullYear();
+        var month = date.getMonth() + 1;
+        var day   = date.getDate();
+
+        if(month < 10){
+            month = '0' + month;
+        }
+
+        if(day < 10){
+            day = '0' + day;
+        }
+
+        var offset = date.getTimezoneOffset() / 60;
+
+        if(offset < 10){
+            offset = '0' + offset;
+        }
+
+        var middleOne = db?'T':' ';
+
+        return year + '-' + month + '-' + day + middleOne + module.exports.getSimpleHour(unixtime) + '-' + offset + ':00';
+
+    },
+
+    months: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
+    monthsShort: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+
+    getBeautifulDate: function(unixtime){
+
+        if(typeof unixtime === 'undefined') unixtime = new Date().getTime();
+
+        var date = new Date(Number(unixtime));
+
+        return date.getDate() + ' de ' + module.exports.months[date.getMonth()];
+
+    },
+
+    // @version 2.0
+    isToday: function(date){
+
+        date = new Date(date);
+
+        return date.toDateString() === new Date().toDateString();
+
+    },
+
+    simpleDateName: function(name){
+
+        return name + '_' + module.exports.simpleDate();
+
+    },
+
+    simpleDate: function(){
+
+        return module.exports.getSimpleHour(new Date(), false).replace(':', 'h') + '_' + module.exports.getLightDate() + '-' + new Date().getFullYear();
 
     }
 

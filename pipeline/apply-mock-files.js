@@ -10,8 +10,6 @@ module.exports = {
 
         program.option('--apply-mock-files <testName>', 'Apply the mock files test');
 
-        // @todo Option for deleting
-
         return module.exports;
 
     },
