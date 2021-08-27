@@ -45,6 +45,7 @@ module.exports = {
         Util.forEachPromise(tests, test => {
 
             if(test == 'preload.js') return Promise.resolve();
+            if(test.indexOf('.json') !== -1) return Promise.resolve();
             if(test.indexOf('.js') == -1) return Promise.resolve();
 
             let testPath = path.join(folder, test);
