@@ -88,7 +88,7 @@ module.exports = {
 
                 }
 
-                let headers = null;
+                let headers = null || item.headers;
 
                 return cube.request(item.method, item.url, data, headers).then(ret => {
 

@@ -686,7 +686,7 @@ let Util = {
 
                 let successfulAuths = fs.readdirSync(authPath);
 
-                return successfulAuths.find(successfulAuth => {
+                let chosed = successfulAuths.find(successfulAuth => {
 
                     let successfulAuthPath = path.join(authPath, successfulAuth);
 
@@ -694,11 +694,11 @@ let Util = {
 
                     let filterResult = filter(authContent);
 
-                    console.log(filterResult);
-
                     return filterResult;
 
                 });
+
+                return fs.readJsonSync(path.join(authPath, chosed));
 
             }
 
@@ -789,6 +789,8 @@ let Util = {
             // }
 
             this.request = (method, url, data = {}, headers = null) => {
+
+                console.log('HEADERS', headers);
 
                 if(!method) return console.log(`@error Method argument needed`);
                 if(!url) return console.log(`@error url argument needed`);
