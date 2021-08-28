@@ -9,89 +9,77 @@ module.exports = {
     setup(program){
 
         program.option('--api [testName]', 'Run a api test');
-        program.option('--show', 'Show the results of request(useful when developing)');
+        program.option('--show',           'Show the results of request(useful when developing)');
+        program.option('--url <url>',      'Test using an url, instead of parsing based on blitz.json or .env')
+        program.option('--timeout <ms>',   'Let the user choose how many seconds triggers timeout')
 
         return module.exports;
 
     },
 
-    // Isso deve permitir que uma api teste um front end real, assim como apenas usar as requisições para
-    // simular ações de um front end real
+    test(opts){
 
-    async run(testName, opts, folder){
+        if(opts.test == 'preload.js') return Promise.resolve();
+        if(opts.test.indexOf('.json') !== -1) return Promise.resolve();
+        if(opts.test.indexOf('.js') == -1) return Promise.resolve();
 
-        let runAll = false;
+        let testPath = path.join(opts.folder, opts.test);
 
-        if(!testName) runAll = true;
+        delete require.cache[require.resolve(testPath)];
 
-        let projectFolder = process.cwd();
+        let browser = null;
 
-        if(!folder){
-            
-            let frontEndTestPath = path.join(projectFolder, 'doc', 'tests', 'api', testName);
+        let env = Util.getEnv();
 
-            if(!fs.existsSync(frontEndTestPath)){
+        let sufix = '';
 
-                return console.log(`@error É requerido a pasta doc/tests/api/${testName}`);
+        if(env.HOST == 'localhost') sufix = ':' + env.PORT;
+
+        let url = env.PROTOCOL + "://" + env.HOST + sufix;
+
+        if(opts.url) env.FULLHOST = opts.url;
+
+        if(!env.FULLHOST) env.FULLHOST = url;
+
+        let item = require(testPath);
+
+        if(item.expect){
+
+            let cube    = Util.cube(env, opts);
+            let answer  = null;
+            let data;
+
+            opts._pipeline_file = module.exports;
+
+            try{
+
+                data = item.data(cube);
+
+            } catch(e){
+
+                console.log(e);
+
+                return cube.reject(e, new Date().getTime());
 
             }
 
-            folder = frontEndTestPath;
+            let prePromise = Promise.resolve();
 
-        }
+            if(data.then){
 
-        let tests = await fs.readdir(folder);
+                prePromise = data.then(dataReturn => {
 
-        Util.forEachPromise(tests, test => {
+                    data = dataReturn;
 
-            if(test == 'preload.js') return Promise.resolve();
-            if(test.indexOf('.json') !== -1) return Promise.resolve();
-            if(test.indexOf('.js') == -1) return Promise.resolve();
+                });
 
-            let testPath = path.join(folder, test);
+            }
 
-            delete require.cache[require.resolve(testPath)];
-
-            let browser = null;
-
-            let env = Util.getEnv();
-
-            let sufix = '';
-
-            if(env.HOST == 'localhost') sufix = ':' + env.PORT;
-
-            let url = env.PROTOCOL + "://" + env.HOST + sufix;
-
-            env.FULLHOST = url;
-
-            opts.projectFolder = projectFolder;
-            opts.type = 'api';
-            opts.test = test;
-            opts.testName = testName;
-
-            let item = require(testPath);
-
-            if(item.expect){
-
-                let cube    = Util.cube(env, opts);
-                let answer  = null;
-                let data;
-
-                try{
-
-                    data = item.data(cube);
-
-                } catch(e){
-
-                    console.log(e);
-
-                    return cube.reject(e, new Date().getTime());
-
-                }
+            return prePromise.then(() => {
 
                 let headers = null || item.headers;
 
-                return cube.request(item.method, item.url, data, headers).then(ret => {
+                return cube.request(item.method, item.url, data, headers, opts).then(ret => {
 
                     let preAnswer = Promise.resolve();
 
@@ -112,7 +100,7 @@ module.exports = {
                     }
 
                     // Detectar e filtrar erros
-                    answer = null;
+                    answer = ret;
 
                     return preAnswer.then(() => {
 
@@ -126,17 +114,70 @@ module.exports = {
 
                     if(item.finally) return item.finally(cube);
 
-                }).then(cube.resolve).catch(e => {
+                }).then(() => {
+
+                    return cube.resolve();
+
+                }).then(() => {
+
+                    if(opts._external){
+
+                        return answer.body;
+
+                    }
+
+                }).catch(e => {
 
                     cube.reject(e.toString(), e);
 
                 });
 
-            } else{
+            });
 
-                return require(testPath)(Util.cube(env, opts));
+        } else{
+
+            return require(testPath)(Util.cube(env, opts));
+
+        }
+
+    },
+
+    // Isso deve permitir que uma api teste um front end real, assim como apenas usar as requisições para
+    // simular ações de um front end real
+
+    async run(testName, opts, folder){
+
+        let runAll = false;
+
+        if(!testName) runAll = true;
+
+        opts.projectFolder = process.cwd();
+        opts.type = 'api';
+        opts.testName = testName;
+
+        if(!folder){
+            
+            let frontEndTestPath = path.join(opts.projectFolder, 'doc', 'tests', 'api', testName);
+
+            if(!fs.existsSync(frontEndTestPath)){
+
+                return console.log(`@error É requerido a pasta doc/tests/api/${testName}`);
 
             }
+
+            folder = frontEndTestPath;
+
+        }
+
+        opts.folder = folder;
+
+        let tests = await fs.readdir(folder);
+
+        Util.forEachPromise(tests, test => {
+
+            opts.test = test;
+
+            return module.exports.test(opts);
 
         });
 

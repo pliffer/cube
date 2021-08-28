@@ -8,11 +8,6 @@ const uuid    = require('uuid').v4;
 const request = require('request');
 const chance  = require('chance');
 
-// const fetch  = require('node-fetch');
-
-// const queryString = require('query-string');
-// const FormData = require('formdata-node').FormData;
-
 let Util = {
 
 	config: {
@@ -702,6 +697,18 @@ let Util = {
 
             }
 
+            this.run = function(testName){
+
+                return opts._pipeline_file.test({
+                    projectFolder: opts.projectFolder,
+                    type: opts.type,
+                    test: testName + '.js',
+                    folder: path.resolve(opts.folder, '../', testName),
+                    _external: true
+                });
+
+            }
+
             this.set = function(filename, object, prepath = ''){
 
                 let cacheDir = path.join(this.dir, 'doc', 'tests', opts.type, opts.test.replace('.js', ''), prepath);
@@ -788,14 +795,25 @@ let Util = {
 
             // }
 
-            this.request = (method, url, data = {}, headers = null) => {
-
-                console.log('HEADERS', headers);
+            this.request = (method, url, data = {}, headers = null, opts = {}) => {
 
                 if(!method) return console.log(`@error Method argument needed`);
                 if(!url) return console.log(`@error url argument needed`);
 
+                if(!opts.timeout) opts.timeout = 5000;
+
                 let testUrl = env.FULLHOST + url;
+
+                console.log('@info Requisitando ' + testUrl.green);
+
+                let initialFeedbackTime = new Date().getTime();
+
+                let feedback = setInterval(() => {
+
+                    // Util.lineLog("\n");
+                    Util.lineLog('@info Aguardando resposta (' + (new Date().getTime() - initialFeedbackTime)/1000 + ' segundos passados)');
+
+                }, 100);
 
                 return new Promise((resolve, reject) => {
 
@@ -819,8 +837,23 @@ let Util = {
 
                     return request[method](testUrl, {
                         headers: headers,
-                        json: data
+                        json: data,
+                        timeout: Number(opts.timeout)
                     }, (err, res, body) => {
+
+                        clearInterval(feedback);
+
+                        if(err){
+
+                            Util.lineLog("\n");
+
+                            if(err.code == 'ETIMEDOUT'){
+
+                                console.log('@info Aumente o tempo usando --timeout <ms>')
+
+                            }
+
+                        }
 
                         if(err) return reject(err);
 
