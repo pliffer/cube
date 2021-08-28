@@ -40,6 +40,14 @@ fs.readdirSync(path.join(__dirname, 'pipeline')).forEach(pipe => {
 
 global.pipeline = pipeline;
 
+// Se essa opção existir no pipeline
+if(pipeline[process.argv[2]]){
+
+    // vamos torna-la parte dos argumentos
+    process.argv[2] = '--' + process.argv[2];
+
+}
+
 program.parse(process.argv);
 
 const options = program.opts();
@@ -47,6 +55,8 @@ const options = program.opts();
 let pipelineRun = false;
 
 Object.keys(options).forEach(opt => {
+
+    // console.log('Run?', opt);
 
     if(pipeline[opt]){
 
