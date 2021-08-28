@@ -801,6 +801,7 @@ let Util = {
                 if(!url) return console.log(`@error url argument needed`);
 
                 if(!opts.timeout) opts.timeout = 5000;
+                if(!opts.show)    opts.show = false;
 
                 let testUrl = env.FULLHOST + url;
 
@@ -845,6 +846,7 @@ let Util = {
 
                         if(err){
 
+
                             Util.lineLog("\n");
 
                             if(err.code == 'ETIMEDOUT'){
@@ -853,9 +855,13 @@ let Util = {
 
                             }
 
+                            if(opts.show) console.log(err);
+
+                            return reject(err);
+
                         }
 
-                        if(err) return reject(err);
+                        if(opts.show) console.log(body);
 
                         resolve({
                             res: res,
