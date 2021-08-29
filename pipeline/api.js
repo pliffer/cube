@@ -60,9 +60,14 @@ module.exports = {
 
         }
 
+        item.opts = JSON.parse(JSON.stringify(opts));
+
         if(item.expect){
 
             let cube    = Util.cube(env, opts);
+
+            cube.item = item;
+
             let answer  = null;
             let data;
 

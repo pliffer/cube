@@ -942,6 +942,8 @@ let Util = {
 
             this.resolve = () => {
 
+                let opts = this.item.opts;
+
                 let resultFolder = path.join(that.dir, 'doc', 'tests', 'results', opts.type);
 
                 let resultName = new Date().getTime() + '-' + opts.test + '-RESOLVED.json';
@@ -959,6 +961,8 @@ let Util = {
             }
 
             this.reject = (errName, additionalData) => {
+
+                let opts = this.item.opts;
 
                 let resultFolder = path.join(that.dir, 'doc', 'tests', 'results', opts.type);
 
