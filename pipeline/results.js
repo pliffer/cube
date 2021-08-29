@@ -1,6 +1,6 @@
-const express = require('express');
-const path    = require('path');
-const fs      = require('fs-extra');
+const express  = require('express');
+const path     = require('path');
+const fs       = require('fs-extra');
 
 let Util = require('../util.js');
 
@@ -8,7 +8,7 @@ module.exports = {
 
     setup(program){
 
-        program.option('--results', 'Show the results of cube');
+        program.option('--results',   'Show the results of cube');
         program.option('--count <n>', 'Count the quantity of lines');
 
         return module.exports;
@@ -66,17 +66,23 @@ module.exports = {
 
                     let date = Util.getBeautifulDate(unixtime) + ' ' + Util.getSimpleHour(unixtime);
 
-                    let status = resultSplit[2]=='REJECT'?resultSplit[2].green:resultSplit[2].red;
+                    let resolved = resultSplit[3].substr(0, 8) == 'RESOLVED';
+
+                    let status = resolved?resultSplit[2].green:resultSplit[2].red;
 
                     let file = resultSplit[1];
 
-                    console.log(`${date} - ${file.yellow}(${status})`);
-
-                    // results
+                    console.log(`${testNumber.toString().yellow}.${k+1} ${date} - ${file.yellow}(${status})`);
 
                 });
 
             });
+
+        }).then(async () => {
+
+            let type = await Util.ask('Qual tipo de teste deseja interagir?');
+
+            console.log(type);
 
         });
 

@@ -1,12 +1,13 @@
-const Prompt  = require('prompt-password');
-const dotenv  = require('dotenv');
-const path    = require('path');
-const open    = require('open');
-const fs      = require('fs-extra');
-const cp      = require('child_process');
-const uuid    = require('uuid').v4;
-const request = require('request');
-const chance  = require('chance');
+const Prompt   = require('prompt-password');
+const dotenv   = require('dotenv');
+const path     = require('path');
+const open     = require('open');
+const fs       = require('fs-extra');
+const cp       = require('child_process');
+const uuid     = require('uuid').v4;
+const request  = require('request');
+const chance   = require('chance');
+const inquirer = require('inquirer');
 
 let Util = {
 
@@ -230,6 +231,70 @@ let Util = {
             });
 
             resolve();
+
+        });
+
+    },
+
+    forEachFile(folder, callback = false){
+
+        let callbackRet = [];
+
+        if(!callback){
+
+            callback = (file, stat, content) => {
+
+                if(content){
+
+                    callbackRet.push(file, stat, content);
+
+                } else{
+
+                    callbackRet.push(file, stat);
+
+                }
+
+            };
+
+        }
+
+        return fs.exists(folder).then(exists => {
+
+            if(!exists) return Promire.reject(folder + ' not found');
+
+            return fs.readdir(folder).then(files => {
+
+                let contentPromise = [];
+
+                files.forEach(file => {
+
+                    let fileName = path.join(folder, file);
+
+                    contentPromise.push(fs.lstat(fileName).then(stat => {
+
+                        if(stat.isFile()){
+
+                            return fs.readFile(fileName, 'utf-8').then(content => {
+
+                                callback(file, stat, content);
+
+                            });
+
+                        }
+
+                        callback(file, stat);
+
+                    }));
+
+                });
+
+                return Promise.all(contentPromise);
+
+            });
+
+        }).then(() => {
+
+            return callbackRet;
 
         });
 
@@ -660,7 +725,7 @@ let Util = {
 
     cube(info, opts){
 
-        let cube = function(env){
+        let cube = function(env, opts){
 
             this.id  = uuid();
             this.dir = opts.projectFolder;
@@ -704,6 +769,7 @@ let Util = {
                     type: opts.type,
                     test: testName + '.js',
                     folder: path.resolve(opts.folder, '../', testName),
+                    url: opts.url,
                     _external: true
                 });
 
@@ -805,11 +871,13 @@ let Util = {
 
                 let testUrl = env.FULLHOST + url;
 
-                console.log('@info Requisitando ' + testUrl.green);
+                if(opts.verbose) console.log('@info Requisitando ' + testUrl.green);
 
                 let initialFeedbackTime = new Date().getTime();
 
                 let feedback = setInterval(() => {
+
+                    if(!opts.verbose) return;
 
                     // Util.lineLog("\n");
                     Util.lineLog('@info Aguardando resposta (' + (new Date().getTime() - initialFeedbackTime)/1000 + ' segundos passados)');
@@ -843,11 +911,9 @@ let Util = {
                     }, (err, res, body) => {
 
                         clearInterval(feedback);
+                        Util.lineLog("\n");
 
                         if(err){
-
-
-                            Util.lineLog("\n");
 
                             if(err.code == 'ETIMEDOUT'){
 
@@ -912,7 +978,20 @@ let Util = {
             
         }
 
-        return new cube(info);
+        return new cube(info, opts);
+
+    },
+
+    ask(question){
+
+        return inquirer.prompt({
+            name: 'answer',
+            message: question
+        }).then(answer => {
+
+            return answer.answer;
+
+        });
 
     },
 

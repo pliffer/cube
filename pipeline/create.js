@@ -37,11 +37,31 @@ module.exports = {
 
         }
 
+        switch(opts.create){
+            case 'api':
+
+                questionList.push({
+                    name: 'route',
+                    message: 'Qual a rota a ser usada?',
+                    default: '/auth'
+                });
+
+                questionList.push({
+                    name: 'method',
+                    message: 'Qual o metodo? [POST, PUT, GET, DELETE]',
+                    default: 'GET'
+                });
+
+            break;
+            default:
+            break;
+        }
+
         if(!opts.goal){
 
             questionList.push({
                 name: 'goal',
-                message: 'Qual o objetivo?',
+                message: 'Qual a descrição?',
             });
 
         }

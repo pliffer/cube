@@ -12,6 +12,7 @@ module.exports = {
         program.option('--show',           'Show the results of request(useful when developing)');
         program.option('--url <url>',      'Test using an url, instead of parsing based on blitz.json or .env')
         program.option('--timeout <ms>',   'Let the user choose how many seconds triggers timeout')
+        program.option('--verbose',        'If enabled, show more info')
 
         return module.exports;
 
@@ -43,6 +44,22 @@ module.exports = {
 
         let item = require(testPath);
 
+        if(item.enabled === false){
+
+            console.log(`@info ${opts.test} disabled`)
+
+            return Promise.resolve();
+
+        }
+
+        if(typeof item.data == 'undefined'){
+
+            item.data = () => {
+                return Promise.resolve();
+            }
+
+        }
+
         if(item.expect){
 
             let cube    = Util.cube(env, opts);
@@ -56,8 +73,6 @@ module.exports = {
                 data = item.data(cube);
 
             } catch(e){
-
-                console.log(e);
 
                 return cube.reject(e, new Date().getTime());
 
@@ -128,6 +143,8 @@ module.exports = {
 
                 }).catch(e => {
 
+                    cube.item = item;
+
                     cube.reject(e.toString(), e);
 
                 });
@@ -142,6 +159,35 @@ module.exports = {
 
     },
 
+    runAll(opts){
+
+        let testPath = path.join(opts.projectFolder, 'doc', 'tests', 'api');
+
+        if(!fs.existsSync(testPath)){
+
+            return console.log(`@error É requerido a pasta doc/tests/api`);
+
+        }
+
+        opts.folder = testPath;
+
+        Util.forEachFile(opts.folder, (filename) => {
+
+            let testfolder = path.join(opts.folder, filename);
+
+            return Util.forEachFile(testfolder, testfile => {
+
+                opts.folder = testfolder;
+                opts.test   = testfile;
+
+                return module.exports.test(opts);
+
+            });
+
+        })
+
+    },
+
     // Isso deve permitir que uma api teste um front end real, assim como apenas usar as requisições para
     // simular ações de um front end real
 
@@ -149,27 +195,29 @@ module.exports = {
 
         let runAll = false;
 
+        if(testName === true) testName = false;
+
         if(!testName) runAll = true;
 
         opts.projectFolder = process.cwd();
-        opts.type = 'api';
-        opts.testName = testName;
+        opts.testName      = testName;
+        opts.type          = 'api';
+
+        if(runAll) return module.exports.runAll(opts);
 
         if(!folder){
-            
-            let frontEndTestPath = path.join(opts.projectFolder, 'doc', 'tests', 'api', testName);
 
-            if(!fs.existsSync(frontEndTestPath)){
+            folder = path.join(opts.projectFolder, 'doc', 'tests', 'api', testName);
+
+            if(!fs.existsSync(folder)){
 
                 return console.log(`@error É requerido a pasta doc/tests/api/${testName}`);
 
             }
 
-            folder = frontEndTestPath;
+            opts.folder = folder;
 
         }
-
-        opts.folder = folder;
 
         let tests = await fs.readdir(folder);
 
@@ -181,6 +229,7 @@ module.exports = {
 
         });
 
+
     },
 
     examples: {
@@ -189,8 +238,8 @@ module.exports = {
 
 module.exports = {
 
-    method: 'post',
-    url: '/auth',
+    method: '$method',
+    url: '$route',
 
     description: '$description',
 
@@ -250,6 +299,8 @@ module.exports = {
             let example = module.exports.examples["sample-test"].trim();
 
             example = example.replace('$description', obj.goal);
+            example = example.replace('$route', obj.route);
+            example = example.replace('$method', obj.method);
 
             fs.writeFileSync(testPath, example, 'utf-8');
 
