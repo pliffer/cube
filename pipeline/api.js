@@ -14,11 +14,16 @@ module.exports = {
         program.option('--timeout <ms>',   'Let the user choose how many seconds triggers timeout')
         program.option('--verbose',        'If enabled, show more info')
 
+        // @todo Quero poder passar propriedades na linha de comando e o arquivo conseguir testar
+        // --args {searchTerm: 'ola', page: 12, perpage: 155}
+
         return module.exports;
 
     },
 
-    test(opts){
+    test(opts, preData){
+
+        if(!preData) preData = null;
 
         if(opts.test == 'preload.js') return Promise.resolve();
         if(opts.test.indexOf('.json') !== -1) return Promise.resolve();
@@ -41,6 +46,8 @@ module.exports = {
         if(opts.url) env.FULLHOST = opts.url;
 
         if(!env.FULLHOST) env.FULLHOST = url;
+
+        if(env.PRODUCTION_URL) env.FULLHOST = env.PRODUCTION_URL;
 
         let item = require(testPath);
 
@@ -75,7 +82,7 @@ module.exports = {
 
             try{
 
-                data = item.data(cube);
+                data = item.data(cube, preData);
 
             } catch(e){
 
@@ -97,7 +104,11 @@ module.exports = {
 
             return prePromise.then(() => {
 
+                if(cube.resolved === true) return Promise.resolve();
+
                 let headers = null || item.headers;
+
+                cube.log(data);
 
                 return cube.request(item.method, item.url, data, headers, opts).then(ret => {
 
@@ -248,17 +259,12 @@ module.exports = {
 
     description: '$description',
 
-    headers: {
-        // jwt
-        // x-access-token
-    },
+    headers: {},
 
     data(){
 
-        return {
-            "mail": "example@example.com.br",
-            "pass": "example"
-        }
+        // Request payload
+        return {}
 
     },
 

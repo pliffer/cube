@@ -736,9 +736,15 @@ let Util = {
             this.util   = module.exports;
             this.chance = chance;
 
+            this.log = function(msg){
+
+                if(opts.verbose) console.log(msg);
+
+            }
+
             this.jsons = function(location, filter){
 
-                let testDir = path.join(this.dir, 'doc', 'tests', opts.type, opts.test);
+                let testDir = path.join(that.dir, 'doc', 'tests', opts.type, opts.test);
 
                 let authPath = path.resolve(testDir, location);
 
@@ -762,7 +768,7 @@ let Util = {
 
             }
 
-            this.run = function(testName){
+            this.run = function(testName, data){
 
                 return opts._pipeline_file.test({
                     projectFolder: opts.projectFolder,
@@ -771,13 +777,13 @@ let Util = {
                     folder: path.resolve(opts.folder, '../', testName),
                     url: opts.url,
                     _external: true
-                });
+                }, data);
 
             }
 
             this.set = function(filename, object, prepath = ''){
 
-                let cacheDir = path.join(this.dir, 'doc', 'tests', opts.type, opts.test.replace('.js', ''), prepath);
+                let cacheDir = path.join(that.dir, 'doc', 'tests', opts.type, opts.test.replace('.js', ''), prepath);
 
                 filename = filename.toString().replace('.json', '');
 
@@ -803,7 +809,7 @@ let Util = {
 
                 if(filename.substr(-5) == '.json') sufix = '';
 
-                let filepath = path.join(this.dir, 'doc', 'tests', opts.type, opts.test, filename + sufix);
+                let filepath = path.join(that.dir, 'doc', 'tests', opts.type, opts.test, filename + sufix);
 
                 return fs.exists(filepath).then(exists => {
 
@@ -829,38 +835,6 @@ let Util = {
 
             }
 
-            // this.getProfiles = function(){
-
-            //     let profilePath = path.join(this.dir, 'doc', 'tests', opts.type, opts.testName, 'profiles');
-
-            //     if(!fs.existsSync(profilePath)) return console.log(`@error ${profilePath} does not exists`);
-
-            //     let profiles   = [];
-
-            //     return fs.readdir(profilePath).then(profileFiles => {
-
-            //         let profileRet = [];
-
-            //         profileFiles.forEach(profile => {
-
-            //             profileRet.push(fs.readJson(path.join(profilePath, profile)).then(profileData => {
-
-            //                 profiles.push(profileData);
-
-            //             }));
-
-            //         });
-
-            //         return Promise.all(profileRet);
-
-            //     }).then(() => {
-
-            //         return profiles;
-
-            //     });
-
-            // }
-
             this.request = (method, url, data = {}, headers = null, opts = {}) => {
 
                 if(!method) return console.log(`@error Method argument needed`);
@@ -871,7 +845,41 @@ let Util = {
 
                 let testUrl = env.FULLHOST + url;
 
-                if(opts.verbose) console.log('@info Requisitando ' + testUrl.green);
+                let jwt = false;
+
+                if(method == 'jwt.post'){
+                    method = 'post';
+                    jwt = true;
+                }
+
+                if(method == 'jwt.get'){
+                    method = 'get';
+                    jwt = true;
+                }
+
+                if(jwt){
+
+                    // @todo Eu sinto que dá para fazer algo aqui, mas esse if ficou obsoleto com os headers
+
+                }
+
+                if(method == 'get'){
+
+                    let sufix = '?';
+
+                    Object.keys(data).forEach((param, k) => {
+
+                        if(k != 0) sufix += '&';
+
+                        sufix += param + "=" + data[param]
+
+                    });
+
+                    testUrl = testUrl + sufix;
+
+                }
+
+                if(opts.verbose) console.log('@info Requisitando ' + testUrl.green);;
 
                 let initialFeedbackTime = new Date().getTime();
 
@@ -885,24 +893,6 @@ let Util = {
                 }, 100);
 
                 return new Promise((resolve, reject) => {
-
-                    let jwt = false;
-
-                    if(method == 'jwt.post'){
-                        method = 'post';
-                        jwt = true;
-                    }
-
-                    if(method == 'jwt.get'){
-                        method = 'get';
-                        jwt = true;
-                    }
-
-                    if(jwt){
-
-                        // @todo Eu sinto que dá para fazer algo aqui, mas esse if ficou obsoleto com os headers
-
-                    }
 
                     return request[method](testUrl, {
                         headers: headers,
@@ -940,9 +930,13 @@ let Util = {
 
             }
 
+            this.resolved = false;
+
             this.resolve = () => {
 
-                let opts = this.item.opts;
+                that.resolved = true;
+
+                let opts = that.item.opts;
 
                 let resultFolder = path.join(that.dir, 'doc', 'tests', 'results', opts.type);
 
@@ -962,7 +956,7 @@ let Util = {
 
             this.reject = (errName, additionalData) => {
 
-                let opts = this.item.opts;
+                let opts = that.item.opts;
 
                 let resultFolder = path.join(that.dir, 'doc', 'tests', 'results', opts.type);
 
