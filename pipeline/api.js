@@ -13,6 +13,7 @@ module.exports = {
         program.option('--url <url>',      'Test using an url, instead of parsing based on blitz.json or .env')
         program.option('--timeout <ms>',   'Let the user choose how many seconds triggers timeout')
         program.option('--verbose',        'If enabled, show more info')
+        program.option('--production',     'If present default url is from production')
 
         // @todo Quero poder passar propriedades na linha de comando e o arquivo conseguir testar
         // --args {searchTerm: 'ola', page: 12, perpage: 155}
@@ -47,7 +48,11 @@ module.exports = {
 
         if(!env.FULLHOST) env.FULLHOST = url;
 
-        if(env.PRODUCTION_URL) env.FULLHOST = env.PRODUCTION_URL;
+        if(opts.production && env.PRODUCTION_URL){
+
+            env.FULLHOST = env.PRODUCTION_URL;
+
+        }
 
         let item = require(testPath);
 
