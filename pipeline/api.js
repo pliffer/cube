@@ -15,6 +15,9 @@ module.exports = {
         program.option('--verbose',        'If enabled, show more info')
         program.option('--production',     'If present default url is from production')
 
+        program.option('--stvp', 'Enable show and verbose on production, and timeout of 30s');
+        program.option('--skipped', 'Show only skipped tests');
+
         // @todo Quero poder passar propriedades na linha de comando e o arquivo conseguir testar
         // --args {searchTerm: 'ola', page: 12, perpage: 155}
 
@@ -23,6 +26,7 @@ module.exports = {
     },
 
     test(opts, preData){
+
 
         if(!preData) preData = null;
 
@@ -35,6 +39,13 @@ module.exports = {
         delete require.cache[require.resolve(testPath)];
 
         let browser = null;
+
+        if(opts.stvp){
+            opts.show       = true;
+            opts.timeout    = 30000;
+            opts.verbose    = true;
+            opts.production = true;
+        }
 
         let env = Util.getEnv();
 
@@ -115,7 +126,9 @@ module.exports = {
 
                 cube.log(data);
 
-                return cube.request(item.method, item.url, data, headers, opts).then(ret => {
+                if(!item.prefix) item.prefix = '';
+
+                return cube.request(item.method, item.prefix + item.url, data, headers, opts).then(ret => {
 
                     let preAnswer = Promise.resolve();
 
@@ -140,7 +153,7 @@ module.exports = {
 
                     return preAnswer.then(() => {
 
-                        if(opts.show) console.log(data);
+                        if(opts.show && data) console.log(data);
 
                         return item.expect(ret, cube, data);
 

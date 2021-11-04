@@ -1,13 +1,14 @@
+const inquirer = require('inquirer');
+const request  = require('request');
 const Prompt   = require('prompt-password');
 const dotenv   = require('dotenv');
-const path     = require('path');
-const open     = require('open');
-const fs       = require('fs-extra');
-const cp       = require('child_process');
-const uuid     = require('uuid').v4;
-const request  = require('request');
 const chance   = require('chance');
-const inquirer = require('inquirer');
+const open     = require('open');
+const path     = require('path');
+const uuid     = require('uuid').v4;
+const xlsx     = require('xlsx');
+const cp       = require('child_process');
+const fs       = require('fs-extra');
 
 let Util = {
 
@@ -658,6 +659,48 @@ let Util = {
 
     },
 
+    excelToJson: function(filename){
+
+        let wb = xlsx.readFile(filename);
+
+        return module.exports.wbToJson(wb);
+
+    },
+
+    excelBufferToJson: function(buffer, opts = {}){
+
+        let wb = xlsx.read(buffer, opts);
+
+        return module.exports.wbToJson(wb);
+
+    },
+
+    excelToArray: function(filename){
+
+        let wb = xlsx.readFile(filename);
+
+        return module.exports.wbToArray(wb);
+
+    },
+
+    wbToJson: function(wb){
+
+        let sheet = wb.Sheets[wb.SheetNames[0]];
+
+        return xlsx.utils.sheet_to_json(sheet);
+
+    },
+
+    wbToArray: function(wb){
+
+        let sheet = wb.Sheets[wb.SheetNames[0]];
+
+        return xlsx.utils.sheet_to_json(sheet, {
+            header: 1
+        });
+
+    },
+
     run(string, dataCallback, opts){
 
         return new Promise((resolve, reject) => {
@@ -742,42 +785,41 @@ let Util = {
 
             }
 
-            this.jsons = function(location, filter){
+            // this.jsons = function(location, filter){
 
-                let testDir = path.join(that.dir, 'doc', 'tests', opts.type, opts.test);
+            //     let testDir = path.join(that.dir, 'doc', 'tests', opts.type, opts.test);
 
-                let authPath = path.resolve(testDir, location);
+            //     let authPath = path.resolve(testDir, location);
 
-                if(!fs.existsSync(authPath)) throw 'cube.jsons(location) not found';
+            //     if(!fs.existsSync(authPath)) throw 'cube.jsons(location) not found';
 
-                let successfulAuths = fs.readdirSync(authPath);
+            //     let successfulAuths = fs.readdirSync(authPath);
 
-                let chosed = successfulAuths.find(successfulAuth => {
+            //     let chosed = successfulAuths.find(successfulAuth => {
 
-                    let successfulAuthPath = path.join(authPath, successfulAuth);
+            //         let successfulAuthPath = path.join(authPath, successfulAuth);
 
-                    let authContent = fs.readJsonSync(successfulAuthPath);
+            //         let authContent = fs.readJsonSync(successfulAuthPath);
 
-                    let filterResult = filter(authContent);
+            //         let filterResult = filter(authContent);
 
-                    return filterResult;
+            //         return filterResult;
 
-                });
+            //     });
 
-                return fs.readJsonSync(path.join(authPath, chosed));
+            //     return fs.readJsonSync(path.join(authPath, chosed));
 
-            }
+            // }
 
             this.run = function(testName, data){
 
-                return opts._pipeline_file.test({
-                    projectFolder: opts.projectFolder,
-                    type: opts.type,
-                    test: testName + '.js',
-                    folder: path.resolve(opts.folder, '../', testName),
-                    url: opts.url,
-                    _external: true
-                }, data);
+                let copyOptions = JSON.parse(JSON.stringify(opts));
+
+                copyOptions._external = true;
+                copyOptions.folder    = path.resolve(opts.folder, '../', testName);
+                copyOptions.test      = testName + '.js';
+
+                return opts._pipeline_file.test(copyOptions, data);
 
             }
 
@@ -865,11 +907,12 @@ let Util = {
 
                 if(method == 'get'){
 
-                    let sufix = '?';
+                    let sufix = '';
 
                     Object.keys(data).forEach((param, k) => {
 
                         if(k != 0) sufix += '&';
+                        else sufix = '?';
 
                         sufix += param + "=" + data[param]
 
@@ -879,7 +922,7 @@ let Util = {
 
                 }
 
-                if(opts.verbose) console.log('@info Requisitando ' + testUrl.green);;
+                if(opts.verbose) console.log(`@info Requisitando [${method}] ${testUrl.green}`);
 
                 let initialFeedbackTime = new Date().getTime();
 
@@ -907,7 +950,15 @@ let Util = {
 
                             if(err.code == 'ETIMEDOUT'){
 
-                                console.log('@info Aumente o tempo usando --timeout <ms>')
+                                let msVar = "<ms>";
+
+                                if(opts.timeout && opts.timeout != 5000){
+
+                                    msVar = Number(opts.timeout) + 5000;
+
+                                }
+
+                                console.log(`@info Aumente o tempo usando ${"--timeout".green} ${msVar}`)
 
                             }
 
@@ -932,7 +983,9 @@ let Util = {
 
             this.resolved = false;
 
-            this.resolve = () => {
+            this.resolve = (msg) => {
+
+                if(that.resolved) return console.log(`@cube Already resolved`);
 
                 that.resolved = true;
 
@@ -940,9 +993,15 @@ let Util = {
 
                 let resultFolder = path.join(that.dir, 'doc', 'tests', 'results', opts.type);
 
-                let resultName = new Date().getTime() + '-' + opts.test + '-RESOLVED.json';
+                let state = 'RESOLVED';
 
-                let resultFile = path.join(resultFolder, resultName)
+                if(msg == 'skipped'){
+                    state = 'SKIPPED';
+                }
+
+                let resultName = new Date().getTime() + '-' + opts.test + '-' + state + '.json';
+
+                let resultFile = path.join(resultFolder, resultName);
 
                 fs.ensureDirSync(resultFolder);
 
@@ -950,11 +1009,23 @@ let Util = {
 
                 fs.writeJsonSync(resultFile, content);
 
-                console.log(`@cube ${"[RESOLVED]".green} ${opts.type} -> ${opts.test}`);
+                let statusMsg = ("[" + state + "]").green;
+
+                if(state == 'SKIPPED') statusMsg = ("[" + state + "]").yellow;
+
+                if(opts['skipped'] && state != 'SKIPPED') return;
+
+                console.log(`@cube ${statusMsg} ${opts.type} -> ${opts.test}`);
 
             }
 
-            this.reject = (errName, additionalData) => {
+            this.reject = (errName, additionalData = {}) => {
+
+                errName = errName.replace(/\//g, '-');
+
+                if(that.resolved) return console.log(`@cube Already resolved`);
+
+                that.resolved = true;
 
                 let opts = that.item.opts;
 
@@ -967,6 +1038,8 @@ let Util = {
                 fs.ensureDirSync(resultFolder);
 
                 fs.writeJsonSync(resultFile, additionalData);
+
+                if(opts['skipped']) return;
 
                 console.log(`@cube ${"[REJECT]".red} ${opts.type} -> ${opts.test}: ${errName}`);
 
