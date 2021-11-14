@@ -18,6 +18,8 @@ module.exports = {
         program.option('--stvp', 'Enable show and verbose on production, and timeout of 30s');
         program.option('--skipped', 'Show only skipped tests');
 
+        program.option('--stats', 'Show only the results');
+
         // @todo Quero poder passar propriedades na linha de comando e o arquivo conseguir testar
         // --args {searchTerm: 'ola', page: 12, perpage: 155}
 
@@ -26,7 +28,6 @@ module.exports = {
     },
 
     test(opts, preData){
-
 
         if(!preData) preData = null;
 
@@ -45,6 +46,13 @@ module.exports = {
             opts.timeout    = 30000;
             opts.verbose    = true;
             opts.production = true;
+        }
+
+        if(opts.stats){
+
+            opts.show       = false;
+            opts.verbose    = false;
+
         }
 
         let env = Util.getEnv();
@@ -181,6 +189,8 @@ module.exports = {
 
                     cube.reject(e.toString(), e);
 
+                    return Promise.reject(e);
+
                 });
 
             });
@@ -205,20 +215,55 @@ module.exports = {
 
         opts.folder = testPath;
 
-        Util.forEachFile(opts.folder, (filename) => {
+        let availableTests = {};
+
+        return Util.forEachFile(opts.folder, (filename) => {
 
             let testfolder = path.join(opts.folder, filename);
 
             return Util.forEachFile(testfolder, testfile => {
 
+                // availableTests.push(testfile);
+
                 opts.folder = testfolder;
                 opts.test   = testfile;
 
-                return module.exports.test(opts);
+                let now = new Date().getTime();
+
+                return module.exports.test(opts).then(() => {
+
+                    availableTests[testfile] = {
+                        SUCCESS: new Date().getTime() - now + 'ms'
+                    };
+
+                }).catch((e) => {
+
+                    availableTests[testfile] = {
+                        REJECT: e.toString()
+                    };
+
+                });
 
             });
 
-        })
+        }).then(() => {
+
+            if(opts.stats){
+
+                let howMany = Object.keys(availableTests).length;
+                let n       = 0;
+
+                for(res in availableTests){
+
+                    n++;
+
+                    console.log('@stats', n + '/' + howMany, res, '->', availableTests[res]);
+
+                }
+
+            }
+
+        });
 
     },
 

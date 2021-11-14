@@ -277,13 +277,13 @@ let Util = {
 
                             return fs.readFile(fileName, 'utf-8').then(content => {
 
-                                callback(file, stat, content);
+                                return callback(file, stat, content);
 
                             });
 
                         }
 
-                        callback(file, stat);
+                        return callback(file, stat);
 
                     }));
 
