@@ -256,10 +256,7 @@ module.exports = {
 
             if(test == 'preload.js') return Promise.resolve();
             if(test == 'userdata') return Promise.resolve();
-
-            let testPath = path.join(folder, test, test);
-
-            delete require.cache[require.resolve(testPath)];
+            if(test[0] == '.') return Promise.resolve();
 
             let browser = null;
 
@@ -270,15 +267,56 @@ module.exports = {
 
                 browser = window.browser;
 
-                let env = Util.getEnv();
+                let cube = {
 
-                return require(testPath)(window.tab, browser, env);
+                    reject(msg){
+
+                        console.log('@info Cube [REJECT]: '.red + msg);
+
+                        return Promise.reject(msg);
+
+                    },
+
+                    resolve(msg){
+
+                        console.log('@info Cube [RESOLVE]: '.green + msg);
+
+                        return Promise.resolve(msg);
+
+                    },
+
+                    run(testSrc, env = Util.getEnv()){
+
+                        let anotherTestSrc = path.join(folder, testSrc);
+
+                        delete require.cache[require.resolve(anotherTestSrc)];
+
+                        return require(anotherTestSrc)(window.tab, browser, env, cube)
+
+                    },
+
+                    async type(qs, message, opt = {}){
+
+                        await window.tab.waitFor(qs);
+                        await window.tab.type(qs, message, opt);
+
+                    }
+
+                }
+
+                return cube.run(test);
 
             }).then(() => {
 
                 browser.close();
 
-            })
+            }).catch((e) => {
+
+                browser.close();
+
+                console.log('Ocorreu um erro no test', e);
+
+            });
 
         });
 
@@ -325,7 +363,7 @@ module.exports = (tab, browser, env) => {
 
         }
 
-        Util.spawn(['subl', testsPath]);
+        if(process.platform != 'win32') Util.spawn(['subl', testsPath]);
 
     }
 
